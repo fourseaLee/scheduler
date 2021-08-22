@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <functional>
 #include <utility>
+#include <iostream>
 
 CScheduler::CScheduler() : nThreadsServicingQueue(0), stopRequested(false), stopWhenEmpty(false)
 {
@@ -16,16 +17,6 @@ CScheduler::~CScheduler()
 {
     assert(nThreadsServicingQueue == 0);
 }
-
-
-#if BOOST_VERSION < 105000
-static std::system_time toPosixTime(const std::chrono::system_clock::time_point& t)
-{
-    // Creating the posix_time using from_time_t loses sub-second precision. So rather than exporting the time_point to time_t,
-    // start with a posix_time at the epoch (0) and add the milliseconds that have passed since then.
-    return std::posix_time::from_time_t(0) + std::posix_time::milliseconds(std::chrono::duration_cast<std::chrono::milliseconds>(t.time_since_epoch()).count());
-}
-#endif
 
 void CScheduler::serviceQueue()
 {
@@ -40,7 +31,9 @@ void CScheduler::serviceQueue()
             if (!shouldStop() && taskQueue.empty()) {
                 reverse_lock<std::unique_lock<std::mutex> > rlock(lock);
                 // Use this chance to get a tiny bit more entropy
-                RandAddSeedSleep();
+                //RandAddSeedSleep();
+		std::cout << "sleep "<< std::endl;
+		//sleep(1);
             }
             while (!shouldStop() && taskQueue.empty()) {
                 // Wait until there is something to do.
@@ -49,14 +42,6 @@ void CScheduler::serviceQueue()
 
             // Wait until either there is a new task, or until
             // the time of the first item on the queue:
-
-// wait_until needs std 1.50 or later; older versions have timed_wait:
-#if BOOST_VERSION < 105000
-            while (!shouldStop() && !taskQueue.empty() &&
-                   newTaskScheduled.timed_wait(lock, toPosixTime(taskQueue.begin()->first))) {
-                // Keep waiting until timeout
-            }
-#else
             // Some std versions have a conflicting overload of wait_until that returns void.
             // Explicitly use a template here to avoid hitting that overload.
             while (!shouldStop() && !taskQueue.empty()) {
@@ -64,7 +49,6 @@ void CScheduler::serviceQueue()
                 if (newTaskScheduled.wait_until<>(lock, timeToWaitFor) == std::cv_status::timeout)
                     break; // Exit loop after timeout, it means we reached the time of the event
             }
-#endif
             // If there are multiple threads, the queue can empty while we're waiting (another
             // thread may service the task we were waiting on).
             if (shouldStop() || taskQueue.empty())
