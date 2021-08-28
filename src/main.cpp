@@ -10,12 +10,15 @@ int main(int argc, char* argv[])
 {
 
 	CScheduler scheduler;
-	ThreadGroup threadGroup;
+	//ThreadGroup threadGroup;
+    	scheduler.scheduleEvery(test, 1000);
 	CScheduler::Function serviceLoop = std::bind(&CScheduler::serviceQueue, &scheduler);
 	//threadGroup.create_thread(boost::bind(&TraceThread<CScheduler::Function>, "scheduler", serviceLoop));
 //	threadGroup.create_thread(boost::bind(test));
+    	std::thread  thread_scheduler(std::bind(&TraceThread<CScheduler::Function>, "scheduler", serviceLoop));
+	thread_scheduler.join();
 
-	int counter{0};
+/*	int counter{0};
 	CScheduler::Function dummy = [&counter]{
 		std::cout << "dummy: " << counter << std::endl; 
 		counter++;};
@@ -40,7 +43,7 @@ int main(int argc, char* argv[])
     while(true)
     {
 	    
-    }
+    }*/
 
 	return 0;
 }
